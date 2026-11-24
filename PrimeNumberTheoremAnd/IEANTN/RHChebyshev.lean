@@ -9,6 +9,7 @@ public import Mathlib.Analysis.Real.Pi.Bounds
 public import Mathlib.NumberTheory.Harmonic.Bounds
 public import PrimeNumberTheoremAnd.Defs
 public import PrimeNumberTheoremAnd.IEANTN.ZetaDefinitions
+public import PrimeNumberTheoremAnd.IEANTN.KadiriZeroCounting
 
 @[expose] public section
 
@@ -367,3 +368,71 @@ lemma riemannZeta.N_add_one_sub_N_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁) (h
   have hid : (T + 1) / (2 * π) = T / (2 * π) + 1 / (2 * π) := by ring
   rw [hexpand]
   linarith
+
+/-- On a finite zero rectangle, `zeroes_sum` is the finite sum of the orders. -/
+lemma riemannZeta.zeroes_sum_one_eq_finset (I J : Set ℝ) (h : (zeroes_rect I J).Finite) :
+    zeroes_sum I J (fun _ ↦ (1 : ℝ)) = ∑ ρ ∈ h.toFinset, (order ρ : ℝ) := by
+  classical
+  unfold zeroes_sum
+  have : Finite (zeroes_rect I J) := h.to_subtype
+  let _ := Fintype.ofFinite (zeroes_rect I J)
+  rw [tsum_fintype]
+  simp only [one_mul]
+  exact (Finset.sum_subtype h.toFinset (p := (· ∈ zeroes_rect I J)) (fun x => by simp)
+    (fun x => (order x : ℝ))).symm
+
+@[blueprint
+  "rh-zeroes-sum-window"
+  (title := "Zeros in a height window as a difference of $N$")
+  (statement := /-- For $0<a\le b$, the number of zeros of $\zeta$ (with multiplicity) with
+  $a\le\Im\rho<b$ equals $N(b)-N(a)$. -/)
+  (proof := /-- The zero rectangle of height $(0,b)$ is the disjoint union of those of heights
+  $(0,a)$ and $[a,b)$, all finite. -/)
+  (latexEnv := "lemma")]
+lemma riemannZeta.zeroes_sum_Ico_eq {a b : ℝ} (ha : 0 < a) (hab : a ≤ b) :
+    zeroes_sum (Set.univ : Set ℝ) (Set.Ico a b) (fun _ ↦ (1 : ℝ)) = N b - N a := by
+  classical
+  have hb := Kadiri.zeroes_rect_univ_positive_height_finite b
+  have ha' := Kadiri.zeroes_rect_univ_positive_height_finite a
+  have hI : (zeroes_rect (Set.univ : Set ℝ) (Set.Ico a b)).Finite :=
+    (Kadiri.zeroes_rect_univ_positive_height_finite (b + 1)).subset fun z hz =>
+      ⟨hz.1, ⟨by linarith [hz.2.1.1], by linarith [hz.2.1.2]⟩, hz.2.2⟩
+  have hfin : hb.toFinset = ha'.toFinset ∪ hI.toFinset := by
+    ext z
+    simp only [Set.Finite.mem_toFinset, Finset.mem_union, zeroes_rect, Set.mem_ofPred_eq,
+      Set.mem_univ, true_and]
+    constructor
+    · rintro ⟨⟨h0, h1⟩, hz⟩
+      by_cases h : z.im < a
+      · exact Or.inl ⟨⟨h0, h⟩, hz⟩
+      · exact Or.inr ⟨⟨not_lt.mp h, h1⟩, hz⟩
+    · rintro (⟨⟨h0, h1⟩, hz⟩ | ⟨⟨h0, h1⟩, hz⟩)
+      · exact ⟨⟨h0, by linarith⟩, hz⟩
+      · exact ⟨⟨by linarith, h1⟩, hz⟩
+  have hdisj : Disjoint ha'.toFinset hI.toFinset := by
+    rw [Finset.disjoint_left]
+    intro z h1 h2
+    simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq] at h1 h2
+    linarith [h1.2.1.2, h2.2.1.1]
+  rw [zeroes_sum_one_eq_finset _ _ hI]
+  unfold N
+  rw [zeroes_sum_one_eq_finset _ _ hb, zeroes_sum_one_eq_finset _ _ ha', hfin,
+    Finset.sum_union hdisj]
+  ring
+
+@[blueprint
+  "rh-zeroes-sum-window-le"
+  (title := "Zeros with height in $[k,k+1)$ under an RvM estimate")
+  (statement := /-- Under the hypotheses of the window-count lemma, for every integer $k\ge2$ the
+  number of zeros (with multiplicity) with $k\le\Im\rho<k+1$ is at most
+  $(1+2b_1+2b_2+2b_3/\log2)\log(k+2)$. -/)
+  (proof := /-- Combine the window identity with the bound on $N(k+1)-N(k)$. -/)
+  (uses := ["rh-zeroes-sum-window", "rh-window-count-of-rvm"])
+  (latexEnv := "lemma")]
+lemma riemannZeta.zeroes_sum_Ico_nat_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂) (h3 : 0 ≤ b₃)
+    (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃) {k : ℕ} (hk : 2 ≤ k) :
+    zeroes_sum (Set.univ : Set ℝ) (Set.Ico (k : ℝ) (k + 1)) (fun _ ↦ (1 : ℝ)) ≤
+      (1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2) * log (k + 2) := by
+  have hk' : (2 : ℝ) ≤ k := by exact_mod_cast hk
+  rw [zeroes_sum_Ico_eq (by linarith) (by linarith)]
+  exact N_add_one_sub_N_le h1 h2 h3 hR hk'
