@@ -982,3 +982,40 @@ theorem RHPsiSchoenfeldBound.theta_lt_of_short_interval (h : RHPsiSchoenfeldBoun
     nlinarith [mul_nonneg (Real.sqrt_nonneg y) (sq_nonneg (log y)), Real.pi_pos]
   have e : y - (y - t) = t := by ring
   rw [e]; linarith
+
+@[blueprint
+  "rh-theta-prime-gap-of-schoenfeld"
+  (title := "A prime in $(y-\\sqrt{y}\\log^2y,\\,y]$ from Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies that if
+  $y-\sqrt{y}\log^2y\ge73.2$ then $\theta(y-\sqrt{y}\log^2y)<\theta(y)$, i.e.\ the interval
+  $(y-\sqrt{y}\log^2y,\,y]$ contains a prime. -/)
+  (proof := /-- Apply the short-interval version with $t=\sqrt{y}\log^2y$: since $y\ge73.2$ we have
+  $\log y\ge4$, so $\frac{\sqrt{y}\log^2y}{4\pi}+2\sqrt{y}\log y\le\sqrt{y}\log^2y$. -/)
+  (uses := ["rh-theta-short-interval-of-schoenfeld"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.theta_lt_sqrt_log_sq (h : RHPsiSchoenfeldBound)
+    (RH : RiemannHypothesis) {y : ℝ} (hy : 73.2 ≤ y - √y * (log y) ^ 2) :
+    θ (y - √y * (log y) ^ 2) < θ y := by
+  have hs : 0 ≤ √y := Real.sqrt_nonneg y
+  have hy0 : (73.2 : ℝ) ≤ y := by
+    have : 0 ≤ √y * (log y) ^ 2 := by positivity
+    linarith
+  have hlog4 : (4 : ℝ) ≤ log y := by
+    rw [Real.le_log_iff_exp_le (by linarith)]
+    have h1 : Real.exp 4 = (Real.exp 1) ^ 4 := by rw [← Real.exp_nat_mul]; norm_num
+    have h2 := Real.exp_one_lt_d9
+    have h3 : 0 < Real.exp 1 := Real.exp_pos 1
+    rw [h1]
+    have : (Real.exp 1) ^ 4 ≤ (2.7182818286 : ℝ) ^ 4 := pow_le_pow_left₀ h3.le h2.le 4
+    norm_num at this ⊢
+    linarith
+  refine h.theta_lt_of_short_interval RH (by positivity) hy ?_
+  have hpi := Real.pi_gt_three
+  have hA : 0 ≤ √y * log y := by positivity
+  have key : (log y) ^ 2 / (4 * π) + 2 * log y ≤ (log y) ^ 2 := by
+    have h4 : (log y) ^ 2 / (4 * π) ≤ (log y) ^ 2 / 12 :=
+      div_le_div_of_nonneg_left (sq_nonneg _) (by norm_num) (by linarith)
+    nlinarith
+  calc √y * (log y) ^ 2 / (4 * π) + 2 * √y * log y
+      = √y * ((log y) ^ 2 / (4 * π) + 2 * log y) := by ring
+    _ ≤ √y * (log y) ^ 2 := mul_le_mul_of_nonneg_left key hs
