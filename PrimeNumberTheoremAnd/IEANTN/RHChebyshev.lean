@@ -247,3 +247,48 @@ lemma sqrt_mul_sum_inv_abs_le {ι : Type*} (s : Finset ι) (γ : ι → ℝ) {x 
           _ ≤ A * log x * log x :=
               mul_le_mul_of_nonneg_left hB (mul_nonneg hA hlogpos)
     _ = A * (√x * (log x) ^ 2) := by ring
+
+@[blueprint
+  "rh-psi-von-koch-of-explicit-formula"
+  (title := "Von Koch from an explicit-formula bound and the window count")
+  (statement := /-- Assume RH. Let $(\rho_i)_{i\in\iota}$ be nontrivial zeros of $\zeta$ and, for each
+  $x\ge16$, let $s_x$ be a finite subset of indices with $1\le|\Im\rho_i|\le\sqrt{x}$ for $i\in s_x$.
+  Suppose
+  \[ |\psi(x)-x| \le \sum_{i\in s_x}|x^{\rho_i}/\rho_i| + C\sqrt{x}\log^2 x \quad(x\ge16)\]
+  (the shape of the truncated explicit formula at height $\sqrt{x}$, with the zeros of height
+  $<1$ and the truncation tail absorbed in $C\sqrt{x}\log^2 x$), and that at most $A\log(k+2)$
+  indices of $s_x$ have $\lfloor|\Im\rho_i|\rfloor=k$. Then $\psi(x)=x+O(\sqrt{x}\log^2 x)$.
+  The explicit-formula hypothesis is \emph{not} proved here. -/)
+  (proof := /-- Bound each term by $\sqrt{x}/|\Im\rho_i|$ and apply the previous lemma. -/)
+  (uses := ["rh-norm-cpow-div-zero", "rh-zero-sum-sqrt-height", "rh-psi-von-koch-bound"])
+  (latexEnv := "theorem")]
+theorem psi_sub_self_isBigO_of_explicit_formula (RH : RiemannHypothesis) {ι : Type*}
+    (ρ : ι → ℂ) (hρ : ∀ i, riemannZeta (ρ i) = 0)
+    (htriv : ∀ i, ¬∃ n : ℕ, ρ i = -2 * (n + 1)) (h1 : ∀ i, ρ i ≠ 1)
+    (s : ℝ → Finset ι) {A C : ℝ} (hA : 0 ≤ A)
+    (hs : ∀ x, 16 ≤ x → ∀ i ∈ s x, 1 ≤ |(ρ i).im| ∧ |(ρ i).im| ≤ √x)
+    (hexp : ∀ x, 16 ≤ x →
+      |ψ x - x| ≤ ∑ i ∈ s x, ‖(x : ℂ) ^ ρ i / ρ i‖ + C * (√x * (log x) ^ 2))
+    (hcount : ∀ x, 16 ≤ x → ∀ k : ℕ,
+      (#{i ∈ s x | ⌊|(ρ i).im|⌋₊ = k} : ℝ) ≤ A * log (k + 2)) :
+    (fun x : ℝ ↦ ψ x - x) =O[atTop] fun x : ℝ ↦ √x * (log x) ^ 2 := by
+  refine IsBigO.of_bound (A + C) ?_
+  filter_upwards [eventually_ge_atTop (16 : ℝ)] with x hx
+  have hsq : 0 ≤ √x := Real.sqrt_nonneg x
+  have hpos : 0 ≤ √x * (log x) ^ 2 := by positivity
+  have hx0 : 0 < x := by linarith
+  have hterm : ∀ i ∈ s x, ‖(x : ℂ) ^ ρ i / ρ i‖ ≤ √x * (1 / |(ρ i).im|) := by
+    intro i hi
+    have him : (ρ i).im ≠ 0 := by
+      have := (hs x hx i hi).1
+      intro h0; rw [h0] at this; simp at this; linarith
+    have := (RH.norm_cpow_div_nontrivialZero (hρ i) (htriv i) (h1 i) hx0).2.2 him
+    rw [mul_one_div]; exact this
+  have hsum : ∑ i ∈ s x, ‖(x : ℂ) ^ ρ i / ρ i‖ ≤ A * (√x * (log x) ^ 2) := by
+    calc ∑ i ∈ s x, ‖(x : ℂ) ^ ρ i / ρ i‖ ≤ ∑ i ∈ s x, √x * (1 / |(ρ i).im|) :=
+          Finset.sum_le_sum hterm
+      _ = √x * ∑ i ∈ s x, 1 / |(ρ i).im| := by rw [← Finset.mul_sum]
+      _ ≤ A * (√x * (log x) ^ 2) :=
+          sqrt_mul_sum_inv_abs_le (s x) (fun i => (ρ i).im) hA hx (hs x hx) (hcount x hx)
+  rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg hpos]
+  linarith [hexp x hx]
