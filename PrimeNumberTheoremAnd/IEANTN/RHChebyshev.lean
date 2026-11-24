@@ -915,3 +915,18 @@ theorem RHPsiSchoenfeldBound.interval (h : RHPsiSchoenfeldBound) (RH : RiemannHy
       have := add_lt_add h2 h1
       rw [← add_div] at this
       exact this
+
+@[blueprint
+  "rh-psi-strict-mono-of-schoenfeld"
+  (title := "$\\psi$ increases across long enough intervals under Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies that if $73.2\le x\le y$ and
+  \[ \frac{\sqrt{y}\log^2y+\sqrt{x}\log^2x}{8\pi} \le y-x, \]
+  then $\psi(x)<\psi(y)$, i.e.\ the interval $(x,y]$ contains a prime power. -/)
+  (proof := /-- By the short-interval bound, $\psi(y)-\psi(x) > (y-x) - \frac{\cdots}{8\pi}\ge0$. -/)
+  (uses := ["rh-psi-interval-of-schoenfeld"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.psi_lt_of_interval (h : RHPsiSchoenfeldBound) (RH : RiemannHypothesis)
+    {x y : ℝ} (hx : 73.2 ≤ x) (hxy : x ≤ y)
+    (hlen : (√y * (log y) ^ 2 + √x * (log x) ^ 2) / (8 * π) ≤ y - x) : ψ x < ψ y := by
+  have := (abs_lt.mp (h.interval RH hx hxy)).1
+  linarith
