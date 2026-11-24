@@ -5,11 +5,12 @@ public import Mathlib.NumberTheory.Chebyshev
 public import Mathlib.NumberTheory.LSeries.RiemannZeta
 public import Mathlib.Analysis.Asymptotics.Lemmas
 public import Mathlib.Analysis.Complex.ExponentialBounds
+public import Mathlib.NumberTheory.Harmonic.Bounds
 public import PrimeNumberTheoremAnd.Defs
 
 @[expose] public section
 
-open Real Filter Asymptotics
+open Real Filter Asymptotics Finset
 open scoped Chebyshev
 
 blueprint_comment /--
@@ -143,3 +144,54 @@ lemma RiemannHypothesis.norm_cpow_div_nontrivialZero (RH : RiemannHypothesis) {�
   · rw [heq, div_le_iff₀ hpos]; nlinarith
   · rw [heq]
     exact div_le_div_of_nonneg_left hs (abs_pos.mpr him) (Complex.abs_im_le_norm ρ)
+
+@[blueprint
+  "rh-sum-inv-heights-le"
+  (title := "Sum of $1/|\\gamma|$ from a unit-window count")
+  (statement := /-- Let $T \ge 1$ and let $\gamma_i$ ($i$ in a finite set) be heights with $1 \le |\gamma_i| \le T$,
+  and suppose that for each integer $k \ge 1$ at most $A\log(k+2)$ of them satisfy
+  $k \le |\gamma_i| < k+1$ (the Riemann--von Mangoldt count $N(t+1)-N(t) = O(\log t)$). Then
+  $\sum_i 1/|\gamma_i| \le A\log(T+2)\,(1+\log T)$. This is the zero-sum step of von Koch's
+  argument, isolated from the zeta function. -/)
+  (proof := /-- Group by $k=\lfloor|\gamma_i|\rfloor$; each group contributes at most
+  $A\log(k+2)/k \le A\log(T+2)/k$, and $\sum_{k\le T}1/k \le 1+\log T$. -/)
+  (latexEnv := "lemma")]
+lemma sum_inv_abs_le_of_window_count {ι : Type*} (s : Finset ι) (γ : ι → ℝ) {T A : ℝ}
+    (hA : 0 ≤ A) (hT1 : 1 ≤ T) (hT : ∀ i ∈ s, 1 ≤ |γ i| ∧ |γ i| ≤ T)
+    (hcount : ∀ k : ℕ, (#{i ∈ s | ⌊|γ i|⌋₊ = k} : ℝ) ≤ A * log (k + 2)) :
+    ∑ i ∈ s, 1 / |γ i| ≤ A * log (T + 2) * (1 + log T) := by
+  classical
+  have hmaps : ∀ i ∈ s, ⌊|γ i|⌋₊ ∈ Icc 1 ⌊T⌋₊ := fun i hi => by
+    rw [mem_Icc]
+    exact ⟨Nat.le_floor (by simpa using (hT i hi).1), Nat.floor_le_floor (hT i hi).2⟩
+  have hlogT : 0 ≤ log (T + 2) := Real.log_nonneg (by linarith)
+  rw [← Finset.sum_fiberwise_of_maps_to hmaps]
+  calc ∑ k ∈ Icc 1 ⌊T⌋₊, ∑ i ∈ s with ⌊|γ i|⌋₊ = k, 1 / |γ i|
+      ≤ ∑ k ∈ Icc 1 ⌊T⌋₊, A * log (T + 2) * (1 / (k : ℝ)) := by
+        refine Finset.sum_le_sum fun k hk => ?_
+        have hk1 : (1 : ℝ) ≤ k := by exact_mod_cast (mem_Icc.mp hk).1
+        have hkT : (k : ℝ) ≤ T := (Nat.le_floor_iff (by linarith)).mp (mem_Icc.mp hk).2
+        have hterm : ∀ i ∈ ({i ∈ s | ⌊|γ i|⌋₊ = k} : Finset ι), 1 / |γ i| ≤ 1 / (k : ℝ) := by
+          intro i hi
+          have hik := (mem_filter.mp hi).2
+          have : (k : ℝ) ≤ |γ i| := by rw [← hik]; exact Nat.floor_le (abs_nonneg _)
+          exact one_div_le_one_div_of_le (by linarith) this
+        calc ∑ i ∈ s with ⌊|γ i|⌋₊ = k, 1 / |γ i|
+            ≤ #{i ∈ s | ⌊|γ i|⌋₊ = k} • (1 / (k : ℝ)) := Finset.sum_le_card_nsmul _ _ _ hterm
+          _ = (#{i ∈ s | ⌊|γ i|⌋₊ = k} : ℝ) * (1 / (k : ℝ)) := by rw [nsmul_eq_mul]
+          _ ≤ (A * log (k + 2)) * (1 / (k : ℝ)) :=
+              mul_le_mul_of_nonneg_right (hcount k) (by positivity)
+          _ ≤ A * log (T + 2) * (1 / (k : ℝ)) := by
+              gcongr
+    _ = A * log (T + 2) * (harmonic ⌊T⌋₊ : ℝ) := by
+        rw [← Finset.mul_sum, harmonic_eq_sum_Icc]
+        simp
+    _ ≤ A * log (T + 2) * (1 + log T) := by
+        refine mul_le_mul_of_nonneg_left ?_ (mul_nonneg hA hlogT)
+        refine (harmonic_le_one_add_log _).trans ?_
+        have : (⌊T⌋₊ : ℝ) ≤ T := Nat.floor_le (by linarith)
+        have hpos : (0 : ℝ) < ⌊T⌋₊ := by
+          have : 1 ≤ ⌊T⌋₊ := Nat.le_floor (by simpa using hT1)
+          exact_mod_cast this
+        have := Real.log_le_log hpos this
+        linarith
