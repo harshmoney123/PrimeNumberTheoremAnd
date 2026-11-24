@@ -697,3 +697,138 @@ theorem psi_sub_self_isBigO_of_explicit_formula_zeroes_sum (RH : RiemannHypothes
   rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg hpos]
   have := hexp x hx
   nlinarith
+
+/-- The zeros with positive height in `[2, n)` form a finite set. -/
+lemma riemannZeta.zeroes_rect_Ico_two_finite (n : ℝ) :
+    (zeroes_rect (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)).Finite :=
+  (Kadiri.zeroes_rect_univ_positive_height_finite n).subset fun z hz =>
+    ⟨hz.1, ⟨by linarith [hz.2.1.1], hz.2.1.2⟩, hz.2.2⟩
+
+/-- Zeros of height in `(-n, -2]` are the conjugates of those of height in `[2, n)`. -/
+lemma riemannZeta.zeroes_rect_Ioc_neg_finite (n : ℝ) :
+    (zeroes_rect (Set.univ : Set ℝ) (Set.Ioc (-n) (-2 : ℝ))).Finite := by
+  refine ((zeroes_rect_Ico_two_finite n).image (starRingEnd ℂ)).subset fun z hz => ?_
+  refine ⟨starRingEnd ℂ z, ⟨Set.mem_univ _, ?_, ?_⟩, Complex.conj_conj z⟩
+  · simp only [Complex.conj_im, Set.mem_Ico]
+    constructor <;> linarith [hz.2.1.1, hz.2.1.2]
+  · have h : riemannZeta z = 0 := hz.2.2
+    change riemannZeta (starRingEnd ℂ z) = 0
+    rw [riemannZeta_conj, h, map_zero]
+
+@[blueprint
+  "rh-zeroes-sum-neg-eq"
+  (title := "Zeros of negative height by conjugation")
+  (statement := /-- If $f(\bar\rho)=f(\rho)$ for all $\rho$, then the sum of $f$ over the zeros of
+  $\zeta$ (with multiplicity) with $-n<\Im\rho\le-2$ equals the sum over those with
+  $2\le\Im\rho<n$. -/)
+  (proof := /-- Complex conjugation is a bijection between the two finite sets of zeros, and
+  preserves the order of a zero. -/)
+  (latexEnv := "lemma")]
+lemma riemannZeta.zeroes_sum_neg_eq (n : ℝ) (f : ℂ → ℝ) (hf : ∀ ρ, f (starRingEnd ℂ ρ) = f ρ) :
+    zeroes_sum (Set.univ : Set ℝ) (Set.Ioc (-n) (-2 : ℝ)) f =
+      zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n) f := by
+  classical
+  have hP := zeroes_rect_Ico_two_finite n
+  have hN := zeroes_rect_Ioc_neg_finite n
+  rw [zeroes_sum_eq_finset _ _ _ hN, zeroes_sum_eq_finset _ _ _ hP]
+  refine Finset.sum_nbij' (starRingEnd ℂ) (starRingEnd ℂ) ?_ ?_ ?_ ?_ ?_
+  · intro ρ hρ
+    simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ, true_and,
+      Set.mem_Ioc, Set.mem_Ico, Complex.conj_im] at hρ ⊢
+    refine ⟨⟨by linarith [hρ.1.2], by linarith [hρ.1.1]⟩, ?_⟩
+    change riemannZeta (starRingEnd ℂ ρ) = 0
+    rw [riemannZeta_conj, show riemannZeta ρ = 0 from hρ.2, map_zero]
+  · intro ρ hρ
+    simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ, true_and,
+      Set.mem_Ioc, Set.mem_Ico, Complex.conj_im] at hρ ⊢
+    refine ⟨⟨by linarith [hρ.1.2], by linarith [hρ.1.1]⟩, ?_⟩
+    change riemannZeta (starRingEnd ℂ ρ) = 0
+    rw [riemannZeta_conj, show riemannZeta ρ = 0 from hρ.2, map_zero]
+  · intro ρ _; exact Complex.conj_conj ρ
+  · intro ρ _; exact Complex.conj_conj ρ
+  · intro ρ hρ
+    simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ, true_and,
+      Set.mem_Ioc] at hρ
+    have hne : ρ ≠ 1 := by
+      intro h; have := hρ.1.2; rw [h] at this; simp at this; linarith
+    rw [hf, Kadiri.riemannZeta_order_conj hne]
+
+@[blueprint
+  "rh-zeroes-sum-abs-eq-two-mul"
+  (title := "Symmetric height window is twice the positive one")
+  (statement := /-- If $f(\bar\rho)=f(\rho)$ for all $\rho$, the sum of $f$ over the zeros with
+  $2\le|\Im\rho|<n$ is twice the sum over those with $2\le\Im\rho<n$. -/)
+  (proof := /-- Split the symmetric window into positive and negative heights and apply the
+  conjugation lemma. -/)
+  (uses := ["rh-zeroes-sum-neg-eq"])
+  (latexEnv := "lemma")]
+lemma riemannZeta.zeroes_sum_abs_eq_two_mul (n : ℝ) (f : ℂ → ℝ)
+    (hf : ∀ ρ, f (starRingEnd ℂ ρ) = f ρ) :
+    zeroes_sum (Set.univ : Set ℝ) {t : ℝ | 2 ≤ |t| ∧ |t| < n} f =
+      2 * zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n) f := by
+  classical
+  have hP := zeroes_rect_Ico_two_finite n
+  have hN := zeroes_rect_Ioc_neg_finite n
+  have hset : zeroes_rect (Set.univ : Set ℝ) {t : ℝ | 2 ≤ |t| ∧ |t| < n} =
+      zeroes_rect (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n) ∪
+        zeroes_rect (Set.univ : Set ℝ) (Set.Ioc (-n) (-2 : ℝ)) := by
+    ext z
+    simp only [zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ, true_and, Set.mem_union,
+      Set.mem_Ico, Set.mem_Ioc]
+    constructor
+    · rintro ⟨⟨h2, hn⟩, hz⟩
+      rcases le_or_gt 0 z.im with h0 | h0
+      · rw [abs_of_nonneg h0] at h2 hn; exact Or.inl ⟨⟨h2, hn⟩, hz⟩
+      · rw [abs_of_neg h0] at h2 hn
+        exact Or.inr ⟨⟨by linarith, by linarith⟩, hz⟩
+    · rintro (⟨⟨h2, hn⟩, hz⟩ | ⟨⟨h2, hn⟩, hz⟩)
+      · rw [abs_of_nonneg (by linarith)]; exact ⟨⟨h2, hn⟩, hz⟩
+      · rw [abs_of_neg (by linarith)]; exact ⟨⟨by linarith, by linarith⟩, hz⟩
+  have hJ : (zeroes_rect (Set.univ : Set ℝ) {t : ℝ | 2 ≤ |t| ∧ |t| < n}).Finite := by
+    rw [hset]; exact hP.union hN
+  have hdisj : Disjoint hP.toFinset hN.toFinset := by
+    rw [Finset.disjoint_left]
+    intro z h1 h2
+    simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq] at h1 h2
+    linarith [h1.2.1.1, h2.2.1.2]
+  have hfs : hJ.toFinset = hP.toFinset ∪ hN.toFinset := by
+    ext z; simp [hset]
+  have hneg := zeroes_sum_neg_eq n f hf
+  rw [zeroes_sum_eq_finset _ _ _ hJ, hfs, Finset.sum_union hdisj,
+    ← zeroes_sum_eq_finset _ _ _ hP, ← zeroes_sum_eq_finset _ _ _ hN, hneg]
+  ring
+
+@[blueprint
+  "rh-psi-von-koch-of-symmetric-explicit-formula"
+  (title := "Von Koch from a symmetric explicit-formula bound and an RvM estimate")
+  (statement := /-- Assume RH and an estimate
+  $|N(T)-\frac{T}{2\pi}\log\frac{T}{2\pi e}-\frac78|\le b_1\log T+b_2\log\log T+b_3$
+  ($T\ge2$, $b_i\ge0$). Suppose that for $x\ge16$ and $n=\lfloor\sqrt{x}\rfloor$,
+  \[ |\psi(x)-x| \le \sum_{2\le|\Im\rho|<n}\Bigl|\frac{x^\rho}{\rho}\Bigr|
+     + C\sqrt{x}\log^2 x \]
+  (sum over all zeros of both signs of height, with multiplicity). Then
+  $\psi(x)=x+O(\sqrt{x}\log^2 x)$. The explicit-formula hypothesis is \emph{not} proved here. -/)
+  (proof := /-- The terms for $\rho$ and $\bar\rho$ have equal norm, so the symmetric sum is twice
+  the sum over positive heights; apply the one-sided result. -/)
+  (uses := ["rh-psi-von-koch-of-explicit-formula-zeroes-sum", "rh-zeroes-sum-abs-eq-two-mul"])
+  (latexEnv := "theorem")]
+theorem psi_sub_self_isBigO_of_symmetric_explicit_formula (RH : RiemannHypothesis)
+    {b₁ b₂ b₃ C : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂) (h3 : 0 ≤ b₃)
+    (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
+    (hexp : ∀ x : ℝ, 16 ≤ x →
+      |ψ x - x| ≤ riemannZeta.zeroes_sum (Set.univ : Set ℝ)
+        {t : ℝ | 2 ≤ |t| ∧ |t| < (⌊√x⌋₊ : ℝ)} (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) +
+        C * (√x * (log x) ^ 2)) :
+    (fun x : ℝ ↦ ψ x - x) =O[atTop] fun x : ℝ ↦ √x * (log x) ^ 2 := by
+  refine psi_sub_self_isBigO_of_explicit_formula_zeroes_sum RH h1 h2 h3 hR (C := C) fun x hx => ?_
+  have hx0 : 0 < x := by linarith
+  have hsym := riemannZeta.zeroes_sum_abs_eq_two_mul (⌊√x⌋₊ : ℝ)
+    (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) fun ρ => by
+      simp only [Complex.norm_div]
+      congr 1
+      · rw [Complex.norm_cpow_eq_rpow_re_of_pos hx0, Complex.norm_cpow_eq_rpow_re_of_pos hx0]
+        simp
+      · simp
+  have := hexp x hx
+  rw [hsym] at this
+  exact this
