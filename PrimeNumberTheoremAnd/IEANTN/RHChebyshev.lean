@@ -1019,3 +1019,40 @@ theorem RHPsiSchoenfeldBound.theta_lt_sqrt_log_sq (h : RHPsiSchoenfeldBound)
   calc √y * (log y) ^ 2 / (4 * π) + 2 * √y * log y
       = √y * ((log y) ^ 2 / (4 * π) + 2 * log y) := by ring
     _ ≤ √y * (log y) ^ 2 := mul_le_mul_of_nonneg_left key hs
+
+/-- If $\theta(x)<\theta(y)$ then some prime lies in $(x,y]$. -/
+lemma Chebyshev.exists_prime_of_theta_lt {x y : ℝ} (h : θ x < θ y) :
+    ∃ p : ℕ, p.Prime ∧ x < p ∧ (p : ℝ) ≤ y := by
+  by_contra hne
+  push_neg at hne
+  have hxy : x ≤ y := by
+    by_contra hlt
+    push_neg at hlt
+    exact absurd (Chebyshev.theta_mono hlt.le) (not_le.mpr h)
+  have heq : θ y = θ x := by
+    unfold Chebyshev.theta
+    congr 1
+    ext p
+    simp only [Finset.mem_filter, Finset.mem_Ioc]
+    constructor
+    · rintro ⟨⟨hp0, hpy⟩, hpp⟩
+      have hpy' : (p : ℝ) ≤ y := (Nat.le_floor_iff' hp0.ne').mp hpy
+      have : (p : ℝ) ≤ x := not_lt.mp fun hx => absurd hpy' (not_le.mpr (hne p hpp hx))
+      exact ⟨⟨hp0, Nat.le_floor this⟩, hpp⟩
+    · rintro ⟨⟨hp0, hpx⟩, hpp⟩
+      exact ⟨⟨hp0, hpx.trans (Nat.floor_le_floor hxy)⟩, hpp⟩
+  linarith
+
+@[blueprint
+  "rh-prime-in-sqrt-log-sq-interval"
+  (title := "A prime in $(y-\\sqrt{y}\\log^2y,\\,y]$ under Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies that if
+  $y-\sqrt{y}\log^2y\ge73.2$ then there is a prime $p$ with $y-\sqrt{y}\log^2y<p\le y$. -/)
+  (proof := /-- If $\theta(x)<\theta(y)$ then the sum defining $\theta(y)$ has a term $\log p$ with
+  $x<p\le y$ and $p$ prime; apply this with $x=y-\sqrt{y}\log^2y$. -/)
+  (uses := ["rh-theta-prime-gap-of-schoenfeld"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.exists_prime_sqrt_log_sq (h : RHPsiSchoenfeldBound)
+    (RH : RiemannHypothesis) {y : ℝ} (hy : 73.2 ≤ y - √y * (log y) ^ 2) :
+    ∃ p : ℕ, p.Prime ∧ y - √y * (log y) ^ 2 < p ∧ (p : ℝ) ≤ y :=
+  Chebyshev.exists_prime_of_theta_lt (h.theta_lt_sqrt_log_sq RH hy)
