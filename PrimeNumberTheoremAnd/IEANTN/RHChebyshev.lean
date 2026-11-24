@@ -1193,3 +1193,21 @@ theorem RHPsiVonKochBound.exists_prime_lt_gap (h : RHPsiVonKochBound) (RH : Riem
           mul_le_mul_of_nonneg_right (le_max_left _ _) hs0
       _ ≤ _ := mul_le_mul_of_nonneg_left hs (le_max_right _ _)
   linarith
+
+@[blueprint
+  "rh-prime-gap-of-explicit-formula"
+  (title := "Prime gaps from the explicit-formula bound and an RvM estimate, under RH")
+  (statement := /-- Assume the bounded explicit formula for $\psi$ holds for some $C$ and the
+  Riemann--von Mangoldt estimate holds with some $b_1,b_2,b_3\ge0$. Then under RH there is
+  $K\ge0$ such that for every sufficiently large prime $q$ there is a prime $p<q$ with
+  $q-p<K\sqrt{q}\log^2q+1$. -/)
+  (proof := /-- Von Koch's bound follows from the two hypotheses; apply the prime-gap
+  consequence of von Koch's bound. -/)
+  (uses := ["rh-psi-von-koch-of-explicit-formula", "rh-prime-gap-below-of-von-koch"])
+  (latexEnv := "theorem")]
+theorem RH_prime_gap_of_explicit_formula {b₁ b₂ b₃ C : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂)
+    (h3 : 0 ≤ b₃) (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
+    (hE : PsiSymmetricExplicitFormulaBound C) (RH : RiemannHypothesis) :
+    ∃ K : ℝ, 0 ≤ K ∧ ∀ᶠ q : ℕ in atTop, q.Prime →
+      ∃ p : ℕ, p.Prime ∧ p < q ∧ (q : ℝ) - p < K * (√q * (log q) ^ 2) + 1 :=
+  (RHPsiVonKochBound_of_explicit_formula h1 h2 h3 hR hE).exists_prime_lt_gap RH
