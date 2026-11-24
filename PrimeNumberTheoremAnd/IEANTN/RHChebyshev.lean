@@ -5,8 +5,10 @@ public import Mathlib.NumberTheory.Chebyshev
 public import Mathlib.NumberTheory.LSeries.RiemannZeta
 public import Mathlib.Analysis.Asymptotics.Lemmas
 public import Mathlib.Analysis.Complex.ExponentialBounds
+public import Mathlib.Analysis.Real.Pi.Bounds
 public import Mathlib.NumberTheory.Harmonic.Bounds
 public import PrimeNumberTheoremAnd.Defs
+public import PrimeNumberTheoremAnd.IEANTN.ZetaDefinitions
 
 @[expose] public section
 
@@ -292,3 +294,76 @@ theorem psi_sub_self_isBigO_of_explicit_formula (RH : RiemannHypothesis) {ι : T
           sqrt_mul_sum_inv_abs_le (s x) (fun i => (ρ i).im) hA hx (hs x hx) (hcount x hx)
   rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg hpos]
   linarith [hexp x hx]
+
+@[blueprint
+  "rh-window-count-of-rvm"
+  (title := "Unit-window zero count from a Riemann--von Mangoldt estimate")
+  (statement := /-- If $|N(T)-\frac{T}{2\pi}\log\frac{T}{2\pi e}-\frac78| \le b_1\log T+b_2\log\log T+b_3$
+  for all $T\ge2$ with $b_1,b_2,b_3\ge0$, then for all $T\ge2$
+  \[ N(T+1)-N(T) \le A\log(T+2),\qquad A = 1+2b_1+2b_2+2b_3/\log 2. \] -/)
+  (proof := /-- Subtract the two estimates. The main terms differ by at most
+  $\frac1{2\pi}\log\frac{T+1}{2\pi}$ since $\log(1+1/T)\le1/T$, and each error term is at most
+  $(b_1+b_2)\log(T+2)+b_3$. -/)
+  (uses := ["Riemann-von-Mangoldt-estimate"])
+  (latexEnv := "lemma")]
+lemma riemannZeta.N_add_one_sub_N_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂) (h3 : 0 ≤ b₃)
+    (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃) {T : ℝ} (hT : 2 ≤ T) :
+    riemannZeta.N (T + 1) - riemannZeta.N T ≤
+      (1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2) * log (T + 2) := by
+  have hT0 : 0 < T := by linarith
+  have hπ : 1 < 2 * π := by linarith [Real.pi_gt_three]
+  have hπ0 : 0 < 2 * π := by linarith
+  set L := log (T + 2) with hL
+  have hL2 : log 2 ≤ L := Real.log_le_log (by norm_num) (by linarith)
+  have hlog2 : 0 < log 2 := Real.log_pos (by norm_num)
+  have hLpos : 0 ≤ L := by linarith
+  have hlogT : log T ≤ L := Real.log_le_log hT0 (by linarith)
+  have hlogT1 : log (T + 1) ≤ L := Real.log_le_log (by linarith) (by linarith)
+  have hlogT_nonneg : 0 ≤ log T := Real.log_nonneg (by linarith)
+  have hlogT1_nonneg : 0 ≤ log (T + 1) := Real.log_nonneg (by linarith)
+  have hll : log (log T) ≤ L :=
+    (Real.log_le_self hlogT_nonneg).trans hlogT
+  have hll1 : log (log (T + 1)) ≤ L :=
+    (Real.log_le_self hlogT1_nonneg).trans hlogT1
+  have hb3 : b₃ ≤ b₃ / log 2 * L := by
+    calc b₃ = b₃ / log 2 * log 2 := by field_simp
+      _ ≤ b₃ / log 2 * L := mul_le_mul_of_nonneg_left hL2 (by positivity)
+  have e1 := hR (T + 1) (by linarith)
+  have e0 := hR T hT
+  unfold riemannZeta.RvM at e1 e0
+  have hmain : (T + 1) / (2 * π) * log ((T + 1) / (2 * π)) - T / (2 * π) * log (T / (2 * π))
+      - 1 / (2 * π) ≤ 1 / (2 * π) * log (T + 1) := by
+    have hdiff : log ((T + 1) / (2 * π)) - log (T / (2 * π)) ≤ 1 / T := by
+      rw [← Real.log_div (by positivity) (by positivity)]
+      have := Real.log_le_sub_one_of_pos (show 0 < (T + 1) / (2 * π) / (T / (2 * π)) by positivity)
+      have heq : (T + 1) / (2 * π) / (T / (2 * π)) = 1 + 1 / T := by field_simp
+      rw [heq] at this ⊢; linarith
+    have ha : log ((T + 1) / (2 * π)) ≤ log (T + 1) :=
+      Real.log_le_log (by positivity) (by rw [div_le_iff₀ hπ0]; nlinarith)
+    have key : (T + 1) * log ((T + 1) / (2 * π)) - T * log (T / (2 * π)) ≤
+        log ((T + 1) / (2 * π)) + 1 := by
+      have := mul_le_mul_of_nonneg_left hdiff hT0.le
+      rw [mul_one_div_cancel hT0.ne'] at this
+      nlinarith
+    have : (T + 1) / (2 * π) * log ((T + 1) / (2 * π)) - T / (2 * π) * log (T / (2 * π))
+        - 1 / (2 * π) = ((T + 1) * log ((T + 1) / (2 * π)) - T * log (T / (2 * π)) - 1) / (2 * π) := by
+      field_simp
+    rw [this, div_le_iff₀ hπ0]
+    have : 1 / (2 * π) * log (T + 1) * (2 * π) = log (T + 1) := by field_simp
+    linarith
+  have hπinv : 1 / (2 * π) ≤ 1 := by rw [div_le_one hπ0]; exact hπ.le
+  have hA : 1 / (2 * π) * log (T + 1) ≤ L := by
+    calc 1 / (2 * π) * log (T + 1) ≤ 1 * log (T + 1) :=
+          mul_le_mul_of_nonneg_right hπinv hlogT1_nonneg
+      _ ≤ L := by linarith
+  have hb1 : b₁ * log (T + 1) ≤ b₁ * L := mul_le_mul_of_nonneg_left hlogT1 h1
+  have hb1' : b₁ * log T ≤ b₁ * L := mul_le_mul_of_nonneg_left hlogT h1
+  have hb2 : b₂ * log (log (T + 1)) ≤ b₂ * L := mul_le_mul_of_nonneg_left hll1 h2
+  have hb2' : b₂ * log (log T) ≤ b₂ * L := mul_le_mul_of_nonneg_left hll h2
+  have habs1 := (abs_le.mp e1).2
+  have habs0 := (abs_le.mp e0).1
+  have hexpand : (1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2) * L =
+      L + 2 * (b₁ * L) + 2 * (b₂ * L) + 2 * (b₃ / log 2 * L) := by ring
+  have hid : (T + 1) / (2 * π) = T / (2 * π) + 1 / (2 * π) := by ring
+  rw [hexpand]
+  linarith
