@@ -113,3 +113,33 @@ theorem RHThetaVonKochBound_of_psi (h : RHPsiVonKochBound) : RHThetaVonKochBound
   have : |θ x - x| ≤ |ψ x - x| + (ψ x - θ x) := by
     rw [abs_le]; constructor <;> cases abs_cases (ψ x - x) <;> linarith [neg_abs_le (ψ x - x), le_abs_self (ψ x - x)]
   nlinarith
+
+@[blueprint
+  "rh-norm-cpow-div-zero"
+  (title := "Size of an explicit-formula term under RH")
+  (statement := /-- Assuming the Riemann Hypothesis, if $\rho$ is a nontrivial zero of $\zeta$ and
+  $x>0$, then $|x^\rho/\rho| = \sqrt{x}/|\rho|$, which is at most $2\sqrt{x}$, and at most
+  $\sqrt{x}/|\Im\rho|$ when $\Im\rho \ne 0$. These bound the terms of the explicit formula
+  $\psi(x) = x - \sum_\rho x^\rho/\rho - \cdots$. -/)
+  (proof := /-- $|x^\rho| = \sqrt{x}$ by the previous lemma, and $|\rho| \ge |\Re\rho| = 1/2$ and
+  $|\rho| \ge |\Im\rho|$. -/)
+  (uses := ["rh-norm-cpow-zero"])
+  (latexEnv := "lemma")]
+lemma RiemannHypothesis.norm_cpow_div_nontrivialZero (RH : RiemannHypothesis) {ρ : ℂ}
+    (hρ : riemannZeta ρ = 0) (htriv : ¬∃ n : ℕ, ρ = -2 * (n + 1)) (h1 : ρ ≠ 1)
+    {x : ℝ} (hx : 0 < x) :
+    ‖(x : ℂ) ^ ρ / ρ‖ = √x / ‖ρ‖ ∧ ‖(x : ℂ) ^ ρ / ρ‖ ≤ 2 * √x ∧
+      (ρ.im ≠ 0 → ‖(x : ℂ) ^ ρ / ρ‖ ≤ √x / |ρ.im|) := by
+  have hre : ρ.re = 1 / 2 := RH ρ hρ htriv h1
+  have hn : ‖(x : ℂ) ^ ρ‖ = √x := RH.norm_cpow_nontrivialZero hρ htriv h1 hx
+  have hhalf : 1 / 2 ≤ ‖ρ‖ := by
+    have := Complex.abs_re_le_norm ρ
+    rw [hre, abs_of_pos (by norm_num)] at this
+    exact this
+  have hpos : 0 < ‖ρ‖ := by linarith
+  have hs : 0 ≤ √x := Real.sqrt_nonneg x
+  have heq : ‖(x : ℂ) ^ ρ / ρ‖ = √x / ‖ρ‖ := by rw [norm_div, hn]
+  refine ⟨heq, ?_, fun him => ?_⟩
+  · rw [heq, div_le_iff₀ hpos]; nlinarith
+  · rw [heq]
+    exact div_le_div_of_nonneg_left hs (abs_pos.mpr him) (Complex.abs_im_le_norm ρ)
