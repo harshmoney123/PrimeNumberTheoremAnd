@@ -4,6 +4,7 @@ public import Architect
 public import Mathlib.NumberTheory.Chebyshev
 public import Mathlib.NumberTheory.LSeries.RiemannZeta
 public import Mathlib.Analysis.Asymptotics.Lemmas
+public import Mathlib.Analysis.Complex.ExponentialBounds
 public import PrimeNumberTheoremAnd.Defs
 
 @[expose] public section
@@ -72,3 +73,43 @@ lemma RiemannHypothesis.norm_cpow_nontrivialZero (RH : RiemannHypothesis) {ρ : 
     (hρ : riemannZeta ρ = 0) (htriv : ¬∃ n : ℕ, ρ = -2 * (n + 1)) (h1 : ρ ≠ 1)
     {x : ℝ} (hx : 0 < x) : ‖(x : ℂ) ^ ρ‖ = √x := by
   rw [Complex.norm_cpow_eq_rpow_re_of_pos hx, RH ρ hρ htriv h1, Real.sqrt_eq_rpow]
+
+@[blueprint
+  "rh-theta-von-koch-bound"
+  (title := "von Koch's bound for $\\theta$ under RH")
+  (statement := /-- Assuming the Riemann Hypothesis,
+  $\theta(x) = x + O(\sqrt{x}\log^2 x)$ as $x \to \infty$. This is the statement of the
+  proposition only; it is not proved here. -/)
+  (latexEnv := "definition")]
+def RHThetaVonKochBound : Prop :=
+  RiemannHypothesis → (fun x : ℝ ↦ θ x - x) =O[atTop] fun x : ℝ ↦ √x * (log x) ^ 2
+
+@[blueprint
+  "rh-theta-von-koch-of-psi"
+  (title := "Von Koch's bound for $\\theta$ from that for $\\psi$")
+  (statement := /-- The $O(\sqrt{x}\log^2 x)$ bound for $\psi(x)-x$ implies the same for
+  $\theta(x)-x$. -/)
+  (proof := /-- $0 \le \psi(x)-\theta(x) \le 2\sqrt{x}\log x \le 2\sqrt{x}\log^2 x$ for $x \ge e$,
+  so $|\theta(x)-x| \le |\psi(x)-x| + 2\sqrt{x}\log^2 x$. -/)
+  (uses := ["rh-psi-von-koch-bound", "rh-theta-von-koch-bound"])
+  (latexEnv := "theorem")]
+theorem RHThetaVonKochBound_of_psi (h : RHPsiVonKochBound) : RHThetaVonKochBound := by
+  intro RH
+  obtain ⟨C, hC⟩ := (h RH).bound
+  refine IsBigO.of_bound (C + 2) ?_
+  filter_upwards [hC, eventually_ge_atTop (3 : ℝ)] with x hxC hx3
+  have hx1 : (1 : ℝ) ≤ x := by linarith
+  have hlog : 1 ≤ log x := by
+    rw [Real.le_log_iff_exp_le (by linarith)]
+    have := Real.exp_one_lt_three
+    linarith
+  have hs : 0 ≤ √x := Real.sqrt_nonneg x
+  have hd := Chebyshev.psi_sub_theta_le hx1
+  have hd0 := sub_nonneg.mpr (Chebyshev.theta_le_psi x)
+  have hpos : 0 ≤ √x * (log x) ^ 2 := by positivity
+  have h2 : 2 * √x * log x ≤ 2 * (√x * (log x) ^ 2) := by
+    nlinarith [mul_nonneg hs (sub_nonneg.mpr hlog), mul_nonneg hs (mul_nonneg (sub_nonneg.mpr hlog) (by linarith : (0:ℝ) ≤ log x))]
+  rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg hpos] at hxC ⊢
+  have : |θ x - x| ≤ |ψ x - x| + (ψ x - θ x) := by
+    rw [abs_le]; constructor <;> cases abs_cases (ψ x - x) <;> linarith [neg_abs_le (ψ x - x), le_abs_self (ψ x - x)]
+  nlinarith
