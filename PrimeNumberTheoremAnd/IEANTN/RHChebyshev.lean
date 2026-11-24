@@ -891,3 +891,27 @@ theorem RHPsiSchoenfeldBound.theta_explicit (h : RHPsiSchoenfeldBound) (RH : Rie
     rw [abs_le]; constructor <;> cases abs_cases (ψ x - x) <;>
       linarith [neg_abs_le (ψ x - x), le_abs_self (ψ x - x)]
   linarith
+
+@[blueprint
+  "rh-psi-interval-of-schoenfeld"
+  (title := "Short-interval bound for $\\psi$ from Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies, for $73.2\le x\le y$,
+  \[ \Bigl|\bigl(\psi(y)-\psi(x)\bigr)-(y-x)\Bigr| <
+     \frac{\sqrt{y}\log^2y+\sqrt{x}\log^2x}{8\pi}. \]
+  This is the form used to detect primes in short intervals (and hence prime gaps) under RH. -/)
+  (proof := /-- Apply the bound at $x$ and at $y$ and use the triangle inequality. -/)
+  (uses := ["rh-psi-schoenfeld-bound"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.interval (h : RHPsiSchoenfeldBound) (RH : RiemannHypothesis)
+    {x y : ℝ} (hx : 73.2 ≤ x) (hxy : x ≤ y) :
+    |(ψ y - ψ x) - (y - x)| <
+      (√y * (log y) ^ 2 + √x * (log x) ^ 2) / (8 * π) := by
+  have hy : (73.2 : ℝ) ≤ y := hxy.trans' hx
+  have h1 := h RH x hx
+  have h2 := h RH y hy
+  calc |(ψ y - ψ x) - (y - x)| = |(ψ y - y) - (ψ x - x)| := by ring_nf
+    _ ≤ |ψ y - y| + |ψ x - x| := abs_sub _ _
+    _ < _ := by
+      have := add_lt_add h2 h1
+      rw [← add_div] at this
+      exact this
