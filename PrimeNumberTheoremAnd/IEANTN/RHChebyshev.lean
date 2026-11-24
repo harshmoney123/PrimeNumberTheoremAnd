@@ -930,3 +930,24 @@ theorem RHPsiSchoenfeldBound.psi_lt_of_interval (h : RHPsiSchoenfeldBound) (RH :
     (hlen : (√y * (log y) ^ 2 + √x * (log x) ^ 2) / (8 * π) ≤ y - x) : ψ x < ψ y := by
   have := (abs_lt.mp (h.interval RH hx hxy)).1
   linarith
+
+@[blueprint
+  "rh-theta-strict-mono-of-schoenfeld"
+  (title := "$\\theta$ increases across long enough intervals under Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies that if $73.2\le x\le y$ and
+  \[ \frac{\sqrt{y}\log^2y+\sqrt{x}\log^2x}{8\pi} + 2\sqrt{y}\log y \le y-x, \]
+  then $\theta(x)<\theta(y)$, i.e.\ the interval $(x,y]$ contains a prime. -/)
+  (proof := /-- $\theta(y)-\theta(x)\ge \psi(y)-\psi(x)-(\psi(y)-\theta(y))$, since
+  $\psi(x)-\theta(x)\ge0$, and $\psi(y)-\theta(y)\le2\sqrt{y}\log y$. Then use the short-interval
+  bound for $\psi$. -/)
+  (uses := ["rh-psi-interval-of-schoenfeld"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.theta_lt_of_interval (h : RHPsiSchoenfeldBound) (RH : RiemannHypothesis)
+    {x y : ℝ} (hx : 73.2 ≤ x) (hxy : x ≤ y)
+    (hlen : (√y * (log y) ^ 2 + √x * (log x) ^ 2) / (8 * π) + 2 * √y * log y ≤ y - x) :
+    θ x < θ y := by
+  have hy1 : (1 : ℝ) ≤ y := by linarith
+  have hd := Chebyshev.psi_sub_theta_le hy1
+  have hd0 := sub_nonneg.mpr (Chebyshev.theta_le_psi x)
+  have := (abs_lt.mp (h.interval RH hx hxy)).1
+  linarith
