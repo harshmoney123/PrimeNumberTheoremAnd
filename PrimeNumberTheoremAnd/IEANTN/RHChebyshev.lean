@@ -581,3 +581,119 @@ lemma riemannZeta.zeroes_sum_inv_im_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁) 
         positivity)
   refine le_of_eq_of_le (Finset.sum_congr rfl fun ρ _ => ?_) hmain
   ring
+
+lemma riemannZeta.order_nonneg_of_pos_im {ρ : ℂ} (hz : riemannZeta ρ = 0) (him : 0 < ρ.im) :
+    (0 : ℝ) ≤ order ρ := by
+  have hmem : ρ ∈ riemannZeta.zeroes_rect (Set.univ : Set ℝ) (Set.Ioo 0 (ρ.im + 1)) :=
+    ⟨Set.mem_univ _, ⟨him, by linarith⟩, hz⟩
+  have : (1 : ℤ) ≤ order ρ :=
+    Kadiri.riemannZeta_one_le_order_nontrivialZero ⟨ρ,
+      Kadiri.positiveHeightZero_re_mem_Ioo ⟨ρ, hmem⟩, Set.mem_univ _, hz⟩
+  exact_mod_cast (by omega : (0 : ℤ) ≤ order ρ)
+
+@[blueprint
+  "rh-psi-von-koch-of-explicit-formula-zeroes-sum"
+  (title := "Von Koch from an explicit-formula bound and an RvM estimate")
+  (statement := /-- Assume RH and an estimate
+  $|N(T)-\frac{T}{2\pi}\log\frac{T}{2\pi e}-\frac78|\le b_1\log T+b_2\log\log T+b_3$ ($T\ge2$,
+  $b_i\ge0$). Suppose that for $x\ge16$ and $n=\lfloor\sqrt{x}\rfloor$,
+  \[ |\psi(x)-x| \le 2\sum_{2\le\Im\rho<n}\Bigl|\frac{x^\rho}{\rho}\Bigr| + C\sqrt{x}\log^2 x \]
+  (sum over zeros with multiplicity; the factor $2$ accounts for the conjugate zeros, and the
+  zeros of height $<2$ together with the truncation tail are absorbed in $C\sqrt{x}\log^2 x$).
+  Then $\psi(x)=x+O(\sqrt{x}\log^2 x)$. The explicit-formula hypothesis is \emph{not} proved
+  here; the Riemann--von Mangoldt estimate is a hypothesis. -/)
+  (proof := /-- Bound each term by $\sqrt{x}/\Im\rho$ and apply the sum estimate for $1/|\Im\rho|$. -/)
+  (uses := ["rh-norm-cpow-div-zero", "rh-zeroes-sum-inv-im-le"])
+  (latexEnv := "theorem")]
+theorem psi_sub_self_isBigO_of_explicit_formula_zeroes_sum (RH : RiemannHypothesis)
+    {b₁ b₂ b₃ C : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂) (h3 : 0 ≤ b₃)
+    (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
+    (hexp : ∀ x : ℝ, 16 ≤ x →
+      |ψ x - x| ≤ 2 * riemannZeta.zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) ⌊√x⌋₊)
+        (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) + C * (√x * (log x) ^ 2)) :
+    (fun x : ℝ ↦ ψ x - x) =O[atTop] fun x : ℝ ↦ √x * (log x) ^ 2 := by
+  classical
+  set A := 1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2 with hAdef
+  have hlog2 : 0 < log 2 := Real.log_pos (by norm_num)
+  have hA : 0 ≤ A := by positivity
+  refine IsBigO.of_bound (2 * A + C) ?_
+  filter_upwards [eventually_ge_atTop (16 : ℝ)] with x hx
+  have hx0 : 0 < x := by linarith
+  have hsq : 0 ≤ √x := Real.sqrt_nonneg x
+  have hpos : 0 ≤ √x * (log x) ^ 2 := by positivity
+  have hs4 : (4 : ℝ) ≤ √x := by
+    rw [show (4 : ℝ) = √16 by rw [show (16 : ℝ) = 4 ^ 2 by norm_num, Real.sqrt_sq (by norm_num)]]
+    exact Real.sqrt_le_sqrt hx
+  set n := ⌊√x⌋₊ with hn
+  have hn4 : 4 ≤ n := Nat.le_floor (by exact_mod_cast hs4)
+  have hn2 : 2 ≤ n := by omega
+  have hnx : (n : ℝ) ≤ √x := Nat.floor_le hsq
+  have hI : (riemannZeta.zeroes_rect (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)).Finite :=
+    (Kadiri.zeroes_rect_univ_positive_height_finite n).subset fun z hz =>
+      ⟨hz.1, ⟨by linarith [hz.2.1.1], hz.2.1.2⟩, hz.2.2⟩
+  -- termwise comparison
+  have hterm : riemannZeta.zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)
+      (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) ≤
+      √x * riemannZeta.zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)
+        (fun ρ ↦ 1 / |ρ.im|) := by
+    rw [riemannZeta.zeroes_sum_eq_finset _ _ _ hI, riemannZeta.zeroes_sum_eq_finset _ _ _ hI,
+      Finset.mul_sum]
+    refine Finset.sum_le_sum fun ρ hρ => ?_
+    simp only [Set.Finite.mem_toFinset, riemannZeta.zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ,
+      true_and, Set.mem_Ico] at hρ
+    obtain ⟨⟨h2im, hlt⟩, hz⟩ := hρ
+    have him : ρ.im ≠ 0 := by linarith
+    have hord := riemannZeta.order_nonneg_of_pos_im hz (by linarith)
+    have htriv : ¬∃ m : ℕ, ρ = -2 * (m + 1) := by
+      rintro ⟨m, hm⟩
+      apply him
+      rw [hm]; simp
+    have hne1 : ρ ≠ 1 := by
+      intro h; apply him; rw [h]; simp
+    have hb := (RH.norm_cpow_div_nontrivialZero hz htriv hne1 hx0).2.2 him
+    calc ‖(x : ℂ) ^ ρ / ρ‖ * (riemannZeta.order ρ : ℝ)
+        ≤ √x / |ρ.im| * (riemannZeta.order ρ : ℝ) := mul_le_mul_of_nonneg_right hb hord
+      _ = √x * (1 / |ρ.im| * (riemannZeta.order ρ : ℝ)) := by ring
+  have hmain := riemannZeta.zeroes_sum_inv_im_le h1 h2 h3 hR hn2
+  -- arithmetic: log(n+2)(1+log n) ≤ log^2 x
+  have hlogx2 : 2 ≤ log x := by
+    have h16 : log 16 ≤ log x := Real.log_le_log (by norm_num) hx
+    have : log 16 = 4 * log 2 := by
+      rw [show (16 : ℝ) = 2 ^ 4 by norm_num, Real.log_pow]; norm_num
+    have h2' : (0.69 : ℝ) < log 2 := by
+      have := Real.log_two_gt_d9; linarith
+    linarith
+  have hlogs : log (√x) = log x / 2 := Real.log_sqrt (by linarith)
+  have hnpos : (0 : ℝ) < n := by exact_mod_cast (by omega : 0 < n)
+  have hA1 : log ((n : ℝ) + 2) ≤ log x := by
+    have : log ((n : ℝ) + 2) ≤ log (2 * √x) :=
+      Real.log_le_log (by linarith) (by linarith)
+    rw [Real.log_mul (by norm_num) (by linarith), hlogs] at this
+    have h2' : log 2 ≤ log x / 2 := by
+      have h4 : log 4 ≤ log x := Real.log_le_log (by norm_num) (by linarith)
+      have : log 4 = 2 * log 2 := by
+        rw [show (4 : ℝ) = 2 ^ 2 by norm_num, Real.log_pow]; norm_num
+      linarith
+    linarith
+  have hB : 1 + log (n : ℝ) ≤ log x := by
+    have := Real.log_le_log hnpos hnx
+    rw [hlogs] at this
+    linarith
+  have hlogn : 0 ≤ log ((n : ℝ) + 2) := Real.log_nonneg (by linarith)
+  have hlogxnn : 0 ≤ log x := by linarith
+  have hsum : A * log ((n : ℝ) + 2) * (1 + log (n : ℝ)) ≤ A * (log x) ^ 2 := by
+    calc A * log ((n : ℝ) + 2) * (1 + log (n : ℝ)) ≤ A * log x * (1 + log (n : ℝ)) :=
+          mul_le_mul_of_nonneg_right (mul_le_mul_of_nonneg_left hA1 hA)
+            (by have := Real.log_nonneg (show (1 : ℝ) ≤ n by exact_mod_cast (by omega : 1 ≤ n)); linarith)
+      _ ≤ A * log x * log x := mul_le_mul_of_nonneg_left hB (mul_nonneg hA hlogxnn)
+      _ = A * (log x) ^ 2 := by ring
+  have hZ : riemannZeta.zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)
+      (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) ≤ A * (√x * (log x) ^ 2) := by
+    calc _ ≤ √x * riemannZeta.zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)
+          (fun ρ ↦ 1 / |ρ.im|) := hterm
+      _ ≤ √x * (A * (log x) ^ 2) :=
+          mul_le_mul_of_nonneg_left (hmain.trans hsum) hsq
+      _ = A * (√x * (log x) ^ 2) := by ring
+  rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg hpos]
+  have := hexp x hx
+  nlinarith
