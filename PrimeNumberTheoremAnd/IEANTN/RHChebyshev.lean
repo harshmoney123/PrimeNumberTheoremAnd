@@ -195,3 +195,55 @@ lemma sum_inv_abs_le_of_window_count {ι : Type*} (s : Finset ι) (γ : ι → �
           exact_mod_cast this
         have := Real.log_le_log hpos this
         linarith
+
+@[blueprint
+  "rh-zero-sum-sqrt-height"
+  (title := "Zero sum truncated at height $\\sqrt{x}$")
+  (statement := /-- In the setting of the previous lemma with $T=\sqrt{x}$ and $x \ge 16$,
+  $\sqrt{x}\sum_i 1/|\gamma_i| \le A\sqrt{x}\log^2 x$. With each term of the explicit formula
+  bounded by $\sqrt{x}/|\gamma_i|$ under RH, this is the $O(\sqrt{x}\log^2 x)$ contribution of
+  the zeros with $|\gamma|\le\sqrt{x}$ in von Koch's theorem. -/)
+  (proof := /-- Apply the previous lemma; $\log(\sqrt{x}+2) \le \log(2\sqrt{x}) \le \log x$ and
+  $1+\log\sqrt{x} \le \log x$ for $x \ge 16$. -/)
+  (uses := ["rh-sum-inv-heights-le"])
+  (latexEnv := "lemma")]
+lemma sqrt_mul_sum_inv_abs_le {ι : Type*} (s : Finset ι) (γ : ι → ℝ) {x A : ℝ}
+    (hA : 0 ≤ A) (hx : 16 ≤ x) (hT : ∀ i ∈ s, 1 ≤ |γ i| ∧ |γ i| ≤ √x)
+    (hcount : ∀ k : ℕ, (#{i ∈ s | ⌊|γ i|⌋₊ = k} : ℝ) ≤ A * log (k + 2)) :
+    √x * ∑ i ∈ s, 1 / |γ i| ≤ A * (√x * (log x) ^ 2) := by
+  have hs4 : (4 : ℝ) ≤ √x := by
+    rw [show (4 : ℝ) = √16 by rw [show (16 : ℝ) = 4 ^ 2 by norm_num, Real.sqrt_sq (by norm_num)]]
+    exact Real.sqrt_le_sqrt hx
+  have hmain := sum_inv_abs_le_of_window_count s γ hA (by linarith) hT hcount
+  have hlog2 : log 2 ≤ log x / 2 := by
+    have h4 : log 4 ≤ log x := Real.log_le_log (by norm_num) (by linarith)
+    have : log 4 = 2 * log 2 := by
+      rw [show (4 : ℝ) = 2 ^ 2 by norm_num, Real.log_pow]; norm_num
+    linarith
+  have hlogs : log (√x) = log x / 2 := by
+    rw [Real.log_sqrt (by linarith)]
+  have hlogx2 : 2 ≤ log x := by
+    have h16 : log 16 ≤ log x := Real.log_le_log (by norm_num) hx
+    have : log 16 = 4 * log 2 := by
+      rw [show (16 : ℝ) = 2 ^ 4 by norm_num, Real.log_pow]; norm_num
+    have h2 : (0.69 : ℝ) < log 2 := by
+      have := Real.log_two_gt_d9; linarith
+    linarith
+  have hA1 : log (√x + 2) ≤ log x := by
+    have : log (√x + 2) ≤ log (2 * √x) := Real.log_le_log (by linarith) (by linarith)
+    rw [Real.log_mul (by norm_num) (by linarith), hlogs] at this
+    linarith
+  have hB : 1 + log (√x) ≤ log x := by rw [hlogs]; linarith
+  have hsq : 0 ≤ √x := by linarith
+  have hlogpos : 0 ≤ log x := by linarith
+  calc √x * ∑ i ∈ s, 1 / |γ i| ≤ √x * (A * log (√x + 2) * (1 + log √x)) :=
+        mul_le_mul_of_nonneg_left hmain hsq
+    _ ≤ √x * (A * log x * log x) := by
+        refine mul_le_mul_of_nonneg_left ?_ hsq
+        have h1 : 0 ≤ log (√x + 2) := Real.log_nonneg (by linarith)
+        have h2 : 0 ≤ 1 + log (√x) := by rw [hlogs]; linarith
+        calc A * log (√x + 2) * (1 + log √x) ≤ A * log x * (1 + log √x) :=
+              mul_le_mul_of_nonneg_right (mul_le_mul_of_nonneg_left hA1 hA) h2
+          _ ≤ A * log x * log x :=
+              mul_le_mul_of_nonneg_left hB (mul_nonneg hA hlogpos)
+    _ = A * (√x * (log x) ^ 2) := by ring
