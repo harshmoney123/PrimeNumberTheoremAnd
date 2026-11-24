@@ -1056,3 +1056,102 @@ theorem RHPsiSchoenfeldBound.exists_prime_sqrt_log_sq (h : RHPsiSchoenfeldBound)
     (RH : RiemannHypothesis) {y : ℝ} (hy : 73.2 ≤ y - √y * (log y) ^ 2) :
     ∃ p : ℕ, p.Prime ∧ y - √y * (log y) ^ 2 < p ∧ (p : ℝ) ≤ y :=
   Chebyshev.exists_prime_of_theta_lt (h.theta_lt_sqrt_log_sq RH hy)
+
+/-- `K √y log² y` is eventually at most `y / 2`. -/
+lemma sqrt_mul_log_sq_eventually_le (K : ℝ) (hK : 0 ≤ K) :
+    ∀ᶠ y : ℝ in atTop, K * (√y * (log y) ^ 2) ≤ y / 2 := by
+  have h1 : (fun y : ℝ => (log y) ^ (2 : ℝ)) =o[atTop] fun y : ℝ => y ^ ((1 : ℝ) / 4) :=
+    isLittleO_log_rpow_rpow_atTop 2 (by norm_num)
+  have h2 := h1.def (c := 1 / (2 * (K + 1))) (by positivity)
+  filter_upwards [h2, eventually_ge_atTop (1 : ℝ)] with y hy hy1
+  have hy0 : 0 ≤ y := by linarith
+  have hl : 0 ≤ log y := Real.log_nonneg hy1
+  rw [Real.norm_eq_abs, Real.norm_eq_abs, abs_of_nonneg (by positivity),
+    abs_of_nonneg (by positivity), Real.rpow_two] at hy
+  have hs : √y * y ^ ((1 : ℝ) / 4) = y ^ ((3 : ℝ) / 4) := by
+    rw [Real.sqrt_eq_rpow, ← Real.rpow_add (by linarith)]; norm_num
+  have h34 : y ^ ((3 : ℝ) / 4) ≤ y := by
+    calc y ^ ((3 : ℝ) / 4) ≤ y ^ (1 : ℝ) :=
+          Real.rpow_le_rpow_of_exponent_le hy1 (by norm_num)
+      _ = y := Real.rpow_one y
+  have hsq : 0 ≤ √y := Real.sqrt_nonneg y
+  have : √y * (log y) ^ 2 ≤ √y * (1 / (2 * (K + 1)) * y ^ ((1 : ℝ) / 4)) :=
+    mul_le_mul_of_nonneg_left hy hsq
+  have e : √y * (1 / (2 * (K + 1)) * y ^ ((1 : ℝ) / 4)) = 1 / (2 * (K + 1)) * y ^ ((3 : ℝ) / 4) := by
+    rw [← hs]; ring
+  rw [e] at this
+  have hK1 : 0 < K + 1 := by linarith
+  calc K * (√y * (log y) ^ 2) ≤ K * (1 / (2 * (K + 1)) * y ^ ((3 : ℝ) / 4)) :=
+        mul_le_mul_of_nonneg_left this hK
+    _ = K / (2 * (K + 1)) * y ^ ((3 : ℝ) / 4) := by ring
+    _ ≤ (1 / 2) * y := by
+        have hk : K / (2 * (K + 1)) ≤ 1 / 2 := by
+          rw [div_le_div_iff₀ (by positivity) (by norm_num)]; nlinarith
+        exact mul_le_mul hk h34 (by positivity) (by norm_num)
+    _ = y / 2 := by ring
+
+@[blueprint
+  "rh-prime-gap-of-von-koch"
+  (title := "Primes in short intervals from von Koch's bound")
+  (statement := /-- If $\psi(x)=x+O(\sqrt{x}\log^2x)$ (von Koch's bound, under RH), then there is
+  $K$ such that for all sufficiently large $y$ there is a prime $p$ with
+  $y-K\sqrt{y}\log^2y<p\le y$. -/)
+  (proof := /-- Let $|\psi(x)-x|\le C\sqrt{x}\log^2x$ for $x\ge x_1$ and $K=2|C|+2$, $s=\sqrt{y}\log^2y$.
+  For large $y$, $x=y-Ks\ge x_1$, so $\psi(y)-\psi(x)\ge Ks-2|C|s=2s$. Since
+  $\psi(y)-\theta(y)\le2\sqrt{y}\log y\le s$ and $\psi(x)\ge\theta(x)$, we get
+  $\theta(y)-\theta(x)\ge s>0$, so a prime lies in $(x,y]$. -/)
+  (uses := ["rh-psi-von-koch-bound"])
+  (latexEnv := "theorem")]
+theorem RHPsiVonKochBound.exists_prime_interval (h : RHPsiVonKochBound) (RH : RiemannHypothesis) :
+    ∃ K : ℝ, ∀ᶠ y : ℝ in atTop, ∃ p : ℕ, p.Prime ∧ y - K * (√y * (log y) ^ 2) < p ∧ (p : ℝ) ≤ y := by
+  obtain ⟨C, hC⟩ := (h RH).bound
+  obtain ⟨x₁, hx₁⟩ := eventually_atTop.mp hC
+  refine ⟨2 * |C| + 2, ?_⟩
+  have hK : 0 ≤ 2 * |C| + 2 := by positivity
+  filter_upwards [sqrt_mul_log_sq_eventually_le _ hK, eventually_ge_atTop (2 * max x₁ 1),
+    eventually_ge_atTop (Real.exp 2)] with y hy hy2 hye
+  set s := √y * (log y) ^ 2 with hsdef
+  have hy1 : (1 : ℝ) ≤ y := by have := le_max_right x₁ 1; linarith
+  have hlog2 : (2 : ℝ) ≤ log y := (Real.le_log_iff_exp_le (by linarith)).mpr hye
+  have hs0 : 0 < s := by
+    have : 0 < log y := by linarith
+    positivity
+  set x := y - (2 * |C| + 2) * s with hxdef
+  have hxm : max x₁ 1 ≤ x := by
+    have := le_max_left x₁ 1; have := le_max_right x₁ 1
+    rw [hxdef]; linarith
+  have hxx1 : x₁ ≤ x := (le_max_left _ _).trans hxm
+  have hx1 : (1 : ℝ) ≤ x := (le_max_right _ _).trans hxm
+  have hxy : x ≤ y := by rw [hxdef]; nlinarith
+  have hbx := hx₁ x hxx1
+  have hby := hx₁ y (by linarith [le_max_left x₁ 1])
+  have h0 : 0 ≤ log x := Real.log_nonneg hx1
+  have hlog : log x ≤ log y := Real.log_le_log (by linarith) hxy
+  have hxs : √x * (log x) ^ 2 ≤ s :=
+    mul_le_mul (Real.sqrt_le_sqrt hxy) (pow_le_pow_left₀ h0 hlog 2) (by positivity)
+      (Real.sqrt_nonneg _)
+  have hbx' : |ψ x - x| ≤ C * (√x * (log x) ^ 2) := by
+    have := hbx
+    rwa [Real.norm_eq_abs, Real.norm_eq_abs,
+      abs_of_nonneg (by positivity : 0 ≤ √x * (log x) ^ 2)] at this
+  have hby' : |ψ y - y| ≤ C * s := by
+    have := hby
+    rwa [Real.norm_eq_abs, Real.norm_eq_abs,
+      abs_of_nonneg (by positivity : 0 ≤ √y * (log y) ^ 2)] at this
+  have hCx : |ψ x - x| ≤ |C| * s :=
+    hbx'.trans ((mul_le_mul_of_nonneg_right (le_abs_self C) (by positivity)).trans
+      (mul_le_mul_of_nonneg_left hxs (abs_nonneg C)))
+  have hCy : |ψ y - y| ≤ |C| * s :=
+    hby'.trans (mul_le_mul_of_nonneg_right (le_abs_self C) hs0.le)
+  have hgap := Chebyshev.psi_sub_theta_le hy1
+  have hgap0 := sub_nonneg.mpr (Chebyshev.theta_le_psi x)
+  have h2s : 2 * √y * log y ≤ s := by
+    have : 2 * log y ≤ (log y) ^ 2 := by nlinarith
+    calc 2 * √y * log y = √y * (2 * log y) := by ring
+      _ ≤ √y * (log y) ^ 2 := mul_le_mul_of_nonneg_left this (Real.sqrt_nonneg _)
+  have hlt : θ x < θ y := by
+    have a1 := (abs_le.mp hCx).2
+    have a3 := (abs_le.mp hCy).1
+    have e : y - x = (2 * |C| + 2) * s := by rw [hxdef]; ring
+    nlinarith [e]
+  exact Chebyshev.exists_prime_of_theta_lt hlt
