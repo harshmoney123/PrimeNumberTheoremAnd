@@ -1155,3 +1155,41 @@ theorem RHPsiVonKochBound.exists_prime_interval (h : RHPsiVonKochBound) (RH : Ri
     have e : y - x = (2 * |C| + 2) * s := by rw [hxdef]; ring
     nlinarith [e]
   exact Chebyshev.exists_prime_of_theta_lt hlt
+
+@[blueprint
+  "rh-prime-gap-below-of-von-koch"
+  (title := "Every large prime has a nearby smaller prime, from von Koch's bound")
+  (statement := /-- If $\psi(x)=x+O(\sqrt{x}\log^2x)$ (under RH), there is $K$ such that for every
+  sufficiently large prime $q$ there is a prime $p<q$ with $q-p<K\sqrt{q}\log^2q+1$. -/)
+  (proof := /-- Apply the short-interval theorem at $y=q-1$: a prime $p$ lies in
+  $(y-K\sqrt{y}\log^2y,\,y]$, hence $p<q$, and $\sqrt{y}\log^2y\le\sqrt{q}\log^2q$. -/)
+  (uses := ["rh-prime-gap-of-von-koch"])
+  (latexEnv := "theorem")]
+theorem RHPsiVonKochBound.exists_prime_lt_gap (h : RHPsiVonKochBound) (RH : RiemannHypothesis) :
+    ∃ K : ℝ, 0 ≤ K ∧ ∀ᶠ q : ℕ in atTop, q.Prime →
+      ∃ p : ℕ, p.Prime ∧ p < q ∧ (q : ℝ) - p < K * (√q * (log q) ^ 2) + 1 := by
+  obtain ⟨K, hK⟩ := h.exists_prime_interval RH
+  refine ⟨max K 0, le_max_right _ _, ?_⟩
+  have htend : Filter.Tendsto (fun q : ℕ => (q : ℝ) - 1) atTop atTop :=
+    Filter.tendsto_atTop_add_const_right _ (-1) tendsto_natCast_atTop_atTop
+  filter_upwards [htend.eventually hK, eventually_ge_atTop 3] with q hq hq3 _
+  obtain ⟨p, hp, h1, h2⟩ := hq
+  have hq3' : (3 : ℝ) ≤ q := by exact_mod_cast hq3
+  have hpq : p < q := by
+    have : (p : ℝ) < q := by linarith
+    exact_mod_cast this
+  refine ⟨p, hp, hpq, ?_⟩
+  have hy1 : (1 : ℝ) ≤ (q : ℝ) - 1 := by linarith
+  have hyq : (q : ℝ) - 1 ≤ q := by linarith
+  have h0 : 0 ≤ log ((q : ℝ) - 1) := Real.log_nonneg hy1
+  have hlog : log ((q : ℝ) - 1) ≤ log q := Real.log_le_log (by linarith) hyq
+  have hs : √((q : ℝ) - 1) * (log ((q : ℝ) - 1)) ^ 2 ≤ √q * (log q) ^ 2 :=
+    mul_le_mul (Real.sqrt_le_sqrt hyq) (pow_le_pow_left₀ h0 hlog 2) (by positivity)
+      (Real.sqrt_nonneg _)
+  have hs0 : 0 ≤ √((q : ℝ) - 1) * (log ((q : ℝ) - 1)) ^ 2 := by positivity
+  have hKs : K * (√((q : ℝ) - 1) * (log ((q : ℝ) - 1)) ^ 2) ≤
+      max K 0 * (√q * (log q) ^ 2) :=
+    calc _ ≤ max K 0 * (√((q : ℝ) - 1) * (log ((q : ℝ) - 1)) ^ 2) :=
+          mul_le_mul_of_nonneg_right (le_max_left _ _) hs0
+      _ ≤ _ := mul_le_mul_of_nonneg_left hs (le_max_right _ _)
+  linarith
