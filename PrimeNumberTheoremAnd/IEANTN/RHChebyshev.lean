@@ -436,3 +436,148 @@ lemma riemannZeta.zeroes_sum_Ico_nat_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁)
   have hk' : (2 : ℝ) ≤ k := by exact_mod_cast hk
   rw [zeroes_sum_Ico_eq (by linarith) (by linarith)]
   exact N_add_one_sub_N_le h1 h2 h3 hR hk'
+
+@[blueprint
+  "rh-weighted-sum-inv-heights-le"
+  (title := "Weighted sum of $1/|\\gamma|$ from a unit-window count")
+  (statement := /-- The weighted version of the unit-window lemma: for $T\ge1$, weights $w_i\ge0$ and
+  heights with $1\le|\gamma_i|\le T$ such that $\sum_{\lfloor|\gamma_i|\rfloor=k}w_i\le A\log(k+2)$
+  for every $k$, one has $\sum_i w_i/|\gamma_i| \le A\log(T+2)(1+\log T)$. Taking $w_i$ to be the
+  order of the zero $\rho_i$ accounts for multiplicity. -/)
+  (proof := /-- Identical to the unweighted case, grouping by $\lfloor|\gamma_i|\rfloor$. -/)
+  (latexEnv := "lemma")]
+lemma sum_div_abs_le_of_weighted_window_count {ι : Type*} (s : Finset ι) (γ w : ι → ℝ)
+    {T A : ℝ} (hA : 0 ≤ A) (hT1 : 1 ≤ T) (hw : ∀ i ∈ s, 0 ≤ w i)
+    (hT : ∀ i ∈ s, 1 ≤ |γ i| ∧ |γ i| ≤ T)
+    (hcount : ∀ k : ℕ, ∑ i ∈ s with ⌊|γ i|⌋₊ = k, w i ≤ A * log (k + 2)) :
+    ∑ i ∈ s, w i / |γ i| ≤ A * log (T + 2) * (1 + log T) := by
+  classical
+  have hmaps : ∀ i ∈ s, ⌊|γ i|⌋₊ ∈ Icc 1 ⌊T⌋₊ := fun i hi => by
+    rw [mem_Icc]
+    exact ⟨Nat.le_floor (by simpa using (hT i hi).1), Nat.floor_le_floor (hT i hi).2⟩
+  have hlogT : 0 ≤ log (T + 2) := Real.log_nonneg (by linarith)
+  rw [← Finset.sum_fiberwise_of_maps_to hmaps]
+  calc ∑ k ∈ Icc 1 ⌊T⌋₊, ∑ i ∈ s with ⌊|γ i|⌋₊ = k, w i / |γ i|
+      ≤ ∑ k ∈ Icc 1 ⌊T⌋₊, A * log (T + 2) * (1 / (k : ℝ)) := by
+        refine Finset.sum_le_sum fun k hk => ?_
+        have hk1 : (1 : ℝ) ≤ k := by exact_mod_cast (mem_Icc.mp hk).1
+        have hkT : (k : ℝ) ≤ T := (Nat.le_floor_iff (by linarith)).mp (mem_Icc.mp hk).2
+        have hterm : ∀ i ∈ ({i ∈ s | ⌊|γ i|⌋₊ = k} : Finset ι),
+            w i / |γ i| ≤ w i * (1 / (k : ℝ)) := by
+          intro i hi
+          have his := (mem_filter.mp hi).1
+          have hik := (mem_filter.mp hi).2
+          have : (k : ℝ) ≤ |γ i| := by rw [← hik]; exact Nat.floor_le (abs_nonneg _)
+          rw [div_eq_mul_one_div]
+          exact mul_le_mul_of_nonneg_left (one_div_le_one_div_of_le (by linarith) this) (hw i his)
+        calc ∑ i ∈ s with ⌊|γ i|⌋₊ = k, w i / |γ i|
+            ≤ ∑ i ∈ s with ⌊|γ i|⌋₊ = k, w i * (1 / (k : ℝ)) := Finset.sum_le_sum hterm
+          _ = (∑ i ∈ s with ⌊|γ i|⌋₊ = k, w i) * (1 / (k : ℝ)) := by rw [← Finset.sum_mul]
+          _ ≤ (A * log (k + 2)) * (1 / (k : ℝ)) :=
+              mul_le_mul_of_nonneg_right (hcount k) (by positivity)
+          _ ≤ A * log (T + 2) * (1 / (k : ℝ)) := by
+              gcongr
+    _ = A * log (T + 2) * (harmonic ⌊T⌋₊ : ℝ) := by
+        rw [← Finset.mul_sum, harmonic_eq_sum_Icc]
+        simp
+    _ ≤ A * log (T + 2) * (1 + log T) := by
+        refine mul_le_mul_of_nonneg_left ?_ (mul_nonneg hA hlogT)
+        refine (harmonic_le_one_add_log _).trans ?_
+        have : (⌊T⌋₊ : ℝ) ≤ T := Nat.floor_le (by linarith)
+        have hpos : (0 : ℝ) < ⌊T⌋₊ := by
+          have : 1 ≤ ⌊T⌋₊ := Nat.le_floor (by simpa using hT1)
+          exact_mod_cast this
+        have := Real.log_le_log hpos this
+        linarith
+
+/-- On a finite zero rectangle, `zeroes_sum` is the finite sum of the weighted orders. -/
+lemma riemannZeta.zeroes_sum_eq_finset (I J : Set ℝ) (f : ℂ → ℝ)
+    (h : (zeroes_rect I J).Finite) :
+    zeroes_sum I J f = ∑ ρ ∈ h.toFinset, f ρ * (order ρ : ℝ) := by
+  classical
+  unfold zeroes_sum
+  have : Finite (zeroes_rect I J) := h.to_subtype
+  let _ := Fintype.ofFinite (zeroes_rect I J)
+  rw [tsum_fintype]
+  exact (Finset.sum_subtype h.toFinset (p := (· ∈ zeroes_rect I J)) (fun x => by simp)
+    (fun x => f x * (order x : ℝ))).symm
+
+@[blueprint
+  "rh-zeroes-sum-inv-im-le"
+  (title := "$\\sum_\\rho 1/|\\Im\\rho|$ over zeros of height in $[2,n)$ from an RvM estimate")
+  (statement := /-- Under an estimate
+  $|N(T)-\frac{T}{2\pi}\log\frac{T}{2\pi e}-\frac78|\le b_1\log T+b_2\log\log T+b_3$ ($T\ge2$,
+  $b_i\ge0$), for every integer $n\ge2$ the sum over zeros $\rho$ (with multiplicity) with
+  $2\le\Im\rho<n$ satisfies
+  \[ \sum_\rho \frac1{|\Im\rho|} \le A\log(n+2)(1+\log n),\quad A=1+2b_1+2b_2+2b_3/\log2. \] -/)
+  (proof := /-- Apply the weighted unit-window lemma with weights the orders of the zeros; the
+  window count is the bound on $N(k+1)-N(k)$. -/)
+  (uses := ["rh-weighted-sum-inv-heights-le", "rh-zeroes-sum-window-le"])
+  (latexEnv := "lemma")]
+lemma riemannZeta.zeroes_sum_inv_im_le {b₁ b₂ b₃ : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂) (h3 : 0 ≤ b₃)
+    (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃) {n : ℕ} (hn : 2 ≤ n) :
+    zeroes_sum (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n) (fun ρ ↦ 1 / |ρ.im|) ≤
+      (1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2) * log (n + 2) * (1 + log n) := by
+  classical
+  have hn' : (2 : ℝ) ≤ n := by exact_mod_cast hn
+  have hI : (zeroes_rect (Set.univ : Set ℝ) (Set.Ico (2 : ℝ) n)).Finite :=
+    (Kadiri.zeroes_rect_univ_positive_height_finite n).subset fun z hz =>
+      ⟨hz.1, ⟨by linarith [hz.2.1.1], hz.2.1.2⟩, hz.2.2⟩
+  set A := 1 + 2 * b₁ + 2 * b₂ + 2 * b₃ / log 2 with hAdef
+  have hlog2 : 0 < log 2 := Real.log_pos (by norm_num)
+  have hA : 0 ≤ A := by positivity
+  rw [zeroes_sum_eq_finset _ _ _ hI]
+  have hmain := sum_div_abs_le_of_weighted_window_count hI.toFinset (fun ρ : ℂ => ρ.im)
+    (fun ρ => (order ρ : ℝ)) (T := n) (A := A) hA (by linarith)
+    (fun ρ hρ => by
+      simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq] at hρ
+      have hz : ρ ∈ zeroes_rect (Set.univ : Set ℝ) (Set.Ioo 0 (n : ℝ)) :=
+        ⟨Set.mem_univ _, ⟨by linarith [hρ.2.1.1], hρ.2.1.2⟩, hρ.2.2⟩
+      have : (1 : ℤ) ≤ order ρ :=
+        Kadiri.riemannZeta_one_le_order_nontrivialZero ⟨ρ,
+          Kadiri.positiveHeightZero_re_mem_Ioo ⟨ρ, hz⟩, Set.mem_univ _, hρ.2.2⟩
+      exact_mod_cast (by omega : (0 : ℤ) ≤ order ρ))
+    (fun ρ hρ => by
+      simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq] at hρ
+      have h2' := hρ.2.1.1
+      rw [abs_of_pos (by linarith)]
+      exact ⟨by linarith, hρ.2.1.2.le⟩)
+    (fun k => by
+      by_cases hk : 2 ≤ k ∧ (k : ℝ) < n
+      · have hk2 : (2 : ℝ) ≤ k := by exact_mod_cast hk.1
+        have hW : (zeroes_rect (Set.univ : Set ℝ) (Set.Ico (k : ℝ) (k + 1))).Finite :=
+          (Kadiri.zeroes_rect_univ_positive_height_finite (k + 1)).subset fun z hz =>
+            ⟨hz.1, ⟨by linarith [hz.2.1.1], hz.2.1.2⟩, hz.2.2⟩
+        have hset : (hI.toFinset.filter fun ρ : ℂ => ⌊|ρ.im|⌋₊ = k) = hW.toFinset := by
+          ext ρ
+          simp only [Finset.mem_filter, Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq,
+            Set.mem_univ, true_and, Set.mem_Ico]
+          have hkn : (k : ℝ) + 1 ≤ n := by exact_mod_cast hk.2
+          constructor
+          · rintro ⟨⟨⟨h0, h1⟩, hz⟩, hf⟩
+            have hf' := (Nat.floor_eq_iff (abs_nonneg _)).mp hf
+            rw [abs_of_pos (by linarith)] at hf'
+            exact ⟨⟨hf'.1, hf'.2⟩, hz⟩
+          · rintro ⟨⟨h0, h1⟩, hz⟩
+            refine ⟨⟨⟨by linarith, by linarith⟩, hz⟩, ?_⟩
+            rw [Nat.floor_eq_iff (abs_nonneg _), abs_of_pos (by linarith)]
+            exact ⟨h0, h1⟩
+        rw [hset, ← zeroes_sum_one_eq_finset _ _ hW]
+        exact zeroes_sum_Ico_nat_le h1 h2 h3 hR hk.1
+      · have hempty : (hI.toFinset.filter fun ρ : ℂ => ⌊|ρ.im|⌋₊ = k) = ∅ := by
+          rw [Finset.filter_eq_empty_iff]
+          intro ρ hρ hf
+          simp only [Set.Finite.mem_toFinset, zeroes_rect, Set.mem_ofPred_eq, Set.mem_univ,
+            true_and, Set.mem_Ico] at hρ
+          have hf' := (Nat.floor_eq_iff (abs_nonneg _)).mp hf
+          rw [abs_of_pos (by linarith [hρ.1.1])] at hf'
+          apply hk
+          have hk2 : 2 ≤ k := by
+            rw [← hf]
+            exact Nat.le_floor (by rw [abs_of_pos (by linarith [hρ.1.1])]; exact_mod_cast hρ.1.1)
+          exact ⟨hk2, by linarith [hρ.1.2, hf'.1]⟩
+        rw [hempty, Finset.sum_empty]
+        have : 0 ≤ log ((k : ℝ) + 2) := Real.log_nonneg (by have := Nat.cast_nonneg (α := ℝ) k; linarith)
+        positivity)
+  refine le_of_eq_of_le (Finset.sum_congr rfl fun ρ _ => ?_) hmain
+  ring
