@@ -832,3 +832,40 @@ theorem psi_sub_self_isBigO_of_symmetric_explicit_formula (RH : RiemannHypothesi
   have := hexp x hx
   rw [hsym] at this
   exact this
+
+@[blueprint
+  "rh-psi-explicit-formula-bound"
+  (title := "Truncated explicit formula for $\\psi$, in bounded form")
+  (statement := /-- For $C\in\mathbb{R}$, the statement that for all $x\ge16$,
+  \[ |\psi(x)-x| \le \sum_{2\le|\Im\rho|<\lfloor\sqrt{x}\rfloor}\Bigl|\frac{x^\rho}{\rho}\Bigr|
+     + C\sqrt{x}\log^2 x, \]
+  the sum running over the zeros of $\zeta$ with multiplicity. This is the consequence of the
+  truncated explicit formula for $\psi$ needed for von Koch's theorem; it is the statement of the
+  proposition only and is not proved here. -/)
+  (latexEnv := "definition")]
+def PsiSymmetricExplicitFormulaBound (C : ℝ) : Prop :=
+  ∀ x : ℝ, 16 ≤ x →
+    |ψ x - x| ≤ riemannZeta.zeroes_sum (Set.univ : Set ℝ)
+      {t : ℝ | 2 ≤ |t| ∧ |t| < (⌊√x⌋₊ : ℝ)} (fun ρ ↦ ‖(x : ℂ) ^ ρ / ρ‖) +
+      C * (√x * (log x) ^ 2)
+
+@[blueprint
+  "rh-psi-von-koch-of-explicit-formula"
+  (title := "Von Koch's bound from the explicit-formula bound and an RvM estimate")
+  (statement := /-- If the bounded explicit formula holds for some $C$ and the
+  Riemann--von Mangoldt estimate holds with some $b_1,b_2,b_3\ge0$, then von Koch's bound
+  $\psi(x)=x+O(\sqrt{x}\log^2x)$ holds under RH. -/)
+  (proof := /-- Apply the symmetric explicit-formula theorem. -/)
+  (uses := ["rh-psi-von-koch-of-symmetric-explicit-formula", "rh-psi-explicit-formula-bound",
+    "rh-psi-von-koch-bound"])
+  (latexEnv := "theorem")]
+theorem RHPsiVonKochBound_of_explicit_formula {b₁ b₂ b₃ C : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂)
+    (h3 : 0 ≤ b₃) (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
+    (hE : PsiSymmetricExplicitFormulaBound C) : RHPsiVonKochBound :=
+  fun RH => psi_sub_self_isBigO_of_symmetric_explicit_formula RH h1 h2 h3 hR hE
+
+/-- Theta version of `RHPsiVonKochBound_of_explicit_formula`. -/
+theorem RHThetaVonKochBound_of_explicit_formula {b₁ b₂ b₃ C : ℝ} (h1 : 0 ≤ b₁) (h2 : 0 ≤ b₂)
+    (h3 : 0 ≤ b₃) (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
+    (hE : PsiSymmetricExplicitFormulaBound C) : RHThetaVonKochBound :=
+  RHThetaVonKochBound_of_psi (RHPsiVonKochBound_of_explicit_formula h1 h2 h3 hR hE)
