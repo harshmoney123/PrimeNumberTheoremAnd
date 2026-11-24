@@ -869,3 +869,25 @@ theorem RHThetaVonKochBound_of_explicit_formula {b₁ b₂ b₃ C : ℝ} (h1 : 0
     (h3 : 0 ≤ b₃) (hR : riemannZeta.Riemann_vonMangoldt_bound b₁ b₂ b₃)
     (hE : PsiSymmetricExplicitFormulaBound C) : RHThetaVonKochBound :=
   RHThetaVonKochBound_of_psi (RHPsiVonKochBound_of_explicit_formula h1 h2 h3 hR hE)
+
+@[blueprint
+  "rh-theta-explicit-of-schoenfeld-psi"
+  (title := "Explicit bound for $\\theta$ from Schoenfeld's bound for $\\psi$")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies, for $x\ge73.2$ (so that
+  $x\ge1$),
+  \[ |\theta(x)-x| < \frac{\sqrt{x}\log^2x}{8\pi} + 2\sqrt{x}\log x. \] -/)
+  (proof := /-- $0\le\psi(x)-\theta(x)\le2\sqrt{x}\log x$, so
+  $|\theta(x)-x|\le|\psi(x)-x|+(\psi(x)-\theta(x))$. -/)
+  (uses := ["rh-psi-schoenfeld-bound"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.theta_explicit (h : RHPsiSchoenfeldBound) (RH : RiemannHypothesis)
+    {x : ℝ} (hx : 73.2 ≤ x) :
+    |θ x - x| < √x * (log x) ^ 2 / (8 * π) + 2 * √x * log x := by
+  have hx1 : (1 : ℝ) ≤ x := by linarith
+  have hd := Chebyshev.psi_sub_theta_le hx1
+  have hd0 := sub_nonneg.mpr (Chebyshev.theta_le_psi x)
+  have hψ := h RH x hx
+  have : |θ x - x| ≤ |ψ x - x| + (ψ x - θ x) := by
+    rw [abs_le]; constructor <;> cases abs_cases (ψ x - x) <;>
+      linarith [neg_abs_le (ψ x - x), le_abs_self (ψ x - x)]
+  linarith
