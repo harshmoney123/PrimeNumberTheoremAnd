@@ -951,3 +951,34 @@ theorem RHPsiSchoenfeldBound.theta_lt_of_interval (h : RHPsiSchoenfeldBound) (RH
   have hd0 := sub_nonneg.mpr (Chebyshev.theta_le_psi x)
   have := (abs_lt.mp (h.interval RH hx hxy)).1
   linarith
+
+@[blueprint
+  "rh-theta-short-interval-of-schoenfeld"
+  (title := "A prime in $(y-h,y]$ from Schoenfeld's bound")
+  (statement := /-- Schoenfeld's explicit bound for $\psi$ under RH implies that if $h\ge0$,
+  $y-h\ge73.2$ and
+  \[ \frac{\sqrt{y}\log^2y}{4\pi}+2\sqrt{y}\log y\le h, \]
+  then $\theta(y-h)<\theta(y)$, i.e.\ $(y-h,y]$ contains a prime. -/)
+  (proof := /-- Put $x=y-h$. Since $1\le x\le y$, $\sqrt{x}\log^2x\le\sqrt{y}\log^2y$, so the hypothesis
+  of the interval version holds. -/)
+  (uses := ["rh-theta-strict-mono-of-schoenfeld"])
+  (latexEnv := "theorem")]
+theorem RHPsiSchoenfeldBound.theta_lt_of_short_interval (h : RHPsiSchoenfeldBound)
+    (RH : RiemannHypothesis) {y t : ℝ} (ht : 0 ≤ t) (hy : 73.2 ≤ y - t)
+    (hlen : √y * (log y) ^ 2 / (4 * π) + 2 * √y * log y ≤ t) : θ (y - t) < θ y := by
+  have hx1 : (1 : ℝ) ≤ y - t := by linarith
+  have hxy : y - t ≤ y := by linarith
+  have h0 : 0 ≤ log (y - t) := Real.log_nonneg hx1
+  have hlog : log (y - t) ≤ log y := Real.log_le_log (by linarith) hxy
+  have hsq : √(y - t) ≤ √y := Real.sqrt_le_sqrt hxy
+  have hl2 : (log (y - t)) ^ 2 ≤ (log y) ^ 2 := pow_le_pow_left₀ h0 hlog 2
+  have hterm : √(y - t) * (log (y - t)) ^ 2 ≤ √y * (log y) ^ 2 :=
+    mul_le_mul hsq hl2 (by positivity) (Real.sqrt_nonneg _)
+  refine h.theta_lt_of_interval RH hy hxy ?_
+  have hpi : 0 < 8 * π := by positivity
+  have : (√y * (log y) ^ 2 + √(y - t) * (log (y - t)) ^ 2) / (8 * π) ≤
+      √y * (log y) ^ 2 / (4 * π) := by
+    rw [div_le_div_iff₀ hpi (by positivity)]
+    nlinarith [mul_nonneg (Real.sqrt_nonneg y) (sq_nonneg (log y)), Real.pi_pos]
+  have e : y - (y - t) = t := by ring
+  rw [e]; linarith
